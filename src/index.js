@@ -39,15 +39,12 @@ const saveUsersToFile = () => {
 // Načtení uživatelů ze souboru
 users = getUsersFromFile();
 
-// GET endpoint pro úvodní stránku
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// GET endpoint pro stránku registrace
-app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'register.html'));
-});
+// Funkce pro generování unikátního ID uživatele
+const generateUniqueID = () => {
+    // Zde můžete implementovat algoritmus pro generování unikátního ID, např. pomocí uuid modulu
+    // Toto je pouze fiktivní implementace, nahraďte ji skutečnou implementací
+    return Math.random().toString(36).substring(7); // Jednoduchá implementace pro demonstrační účely
+};
 
 // POST endpoint pro registraci uživatele
 app.post('/register', async (req, res) => {
@@ -68,8 +65,8 @@ app.post('/register', async (req, res) => {
         // Hashování hesla
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Přidání nového uživatele do databáze
-        const newUser = { username, email, password: hashedPassword, notes: [] };
+        // Přidání nového uživatele do databáze s přiděleným ID
+        const newUser = { id: generateUniqueID(), username, email, password: hashedPassword, notes: [] };
         users.push(newUser);
 
         // Uložení uživatele do souboru
@@ -83,11 +80,6 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// GET endpoint pro stránku přihlášení
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
 // POST endpoint pro přihlášení uživatele
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -97,45 +89,50 @@ app.post('/login', async (req, res) => {
         return res.status(400).json({ error: 'Please provide email and password' });
     }
 
-    // Hledání uživatele v databázi
+    // Najdi uživatele v seznamu uživatelů pomocí emailu
     const user = users.find(user => user.email === email);
+
+    // Pokud uživatel nebyl nalezen, vrátíme chybu
     if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+        return res.status(404).json({ error: 'User not found' });
     }
 
-    // Ověření hesla
     try {
+        // Porovnání hesla s hashem v databázi
         const passwordMatch = await bcrypt.compare(password, user.password);
+
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
+
+        // Přesměrování na uživatelskou stránku po úspěšném přihlášení
+        res.redirect('/user-page');
     } catch (error) {
         console.error('Error comparing passwords:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error' });
     }
-
-    // Přesměrování na stránku po přihlášení
-    res.redirect('/user-page');
 });
 
 // POST endpoint pro vytvoření poznámky
 app.post('/create-note', (req, res) => {
     const { text } = req.body;
-    const email = req.body.email;
 
     // Validace vstupních dat
     if (!text) {
         return res.status(400).json({ error: 'Please provide note text' });
     }
 
-    // Najděte uživatele v seznamu uživatelů
+    // Získání uživatele pomocí ID uloženého v local storage
+    const email = req.headers.authorization;
     const user = users.find(user => user.email === email);
 
-    // Generování ID pro novou poznámku
-    const id = user.notes.length + 1;
+    // Pokud uživatel nebyl nalezen, vrátíme chybu
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
 
-    // Vytvoření nové poznámky a uložení do databáze
-    const newNote = { id, text };
+    // Přidání nové poznámky k uživateli
+    const newNote = { id: generateUniqueID(), text };
     user.notes.push(newNote);
 
     // Uložení změn do souboru
@@ -145,15 +142,39 @@ app.post('/create-note', (req, res) => {
     res.redirect('/user-page');
 });
 
+// GET endpoint pro úvodní stránku
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// GET endpoint pro stránku registrace
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+// GET endpoint pro stránku přihlášení
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
 // GET endpoint pro stránku po přihlášení
 app.get('/user-page', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'user-page.html'));
 });
 
-// POST endpoint pro odhlášení
-app.post('/logout', (req, res) => {
-    // Logika pro odhlášení uživatele
-    res.redirect('/');
+// GET endpoint pro získání poznámek uživatele
+app.get('/notes', (req, res) => {
+    // Získání uživatele pomocí ID uloženého v local storage
+    const email = req.headers.authorization;
+    const user = users.find(user => user.email === email);
+
+    // Pokud uživatel nebyl nalezen, vrátíme chybu
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Vrácení seznamu poznámek uživatele
+    res.json(user.notes);
 });
 
 app.listen(PORT, () => {
