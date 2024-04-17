@@ -1,39 +1,27 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const dbPath = './data/users.json';
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Načtení uživatelů z databáze
-const loadUsers = () => {
-    try {
-        if (fs.existsSync(dbPath)) {
-            const usersJSON = fs.readFileSync(dbPath, 'utf8');
-            if (usersJSON.trim() === '') {
-                return [];
-            }
-            return JSON.parse(usersJSON);
-        } else {
-            return [];
-        }
-    } catch (error) {
-        console.error('Error loading users:', error);
-        return [];
-    }
-};
+// Simulace databáze uživatelů
+let users = [];
 
-// Funkce pro uložení uživatelů do databáze
-const saveUsers = (users) => {
-    const usersJSON = JSON.stringify(users);
-    fs.writeFileSync(dbPath, usersJSON);
-};
+// GET endpoint pro úvodní stránku
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-// Route pro zpracování registrace uživatele
+// GET endpoint pro stránku registrace
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+// POST endpoint pro registraci uživatele
 app.post('/register', (req, res) => {
     const { username, email, password } = req.body;
 
@@ -42,9 +30,6 @@ app.post('/register', (req, res) => {
         return res.status(400).json({ error: 'Please provide username, email, and password' });
     }
 
-    // Načtení uživatelů z databáze
-    let users = loadUsers();
-
     // Kontrola existence uživatele
     const existingUser = users.find(user => user.email === email);
     if (existingUser) {
@@ -52,11 +37,45 @@ app.post('/register', (req, res) => {
     }
 
     // Přidání nového uživatele do databáze
-    const newUser = { username, email, password };
-    users.push(newUser);
-    saveUsers(users);
+    users.push({ username, email, password });
 
-    res.status(201).json({ message: 'User registered successfully' });
+    // Přesměrování na stránku po úspěšné registraci
+    res.redirect('/user-page');
+});
+
+// GET endpoint pro stránku přihlášení
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// POST endpoint pro přihlášení uživatele
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    // Validace vstupních dat
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Please provide email and password' });
+    }
+
+    // Hledání uživatele v databázi
+    const user = users.find(user => user.email === email && user.password === password);
+    if (!user) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Přesměrování na stránku po přihlášení
+    res.redirect('/user-page');
+});
+
+// GET endpoint pro stránku po přihlášení
+app.get('/user-page', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'user-page.html'));
+});
+
+// POST endpoint pro odhlášení
+app.post('/logout', (req, res) => {
+    // Logika pro odhlášení uživatele
+    res.redirect('/');
 });
 
 app.listen(PORT, () => {
