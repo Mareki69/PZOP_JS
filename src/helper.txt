@@ -1,0 +1,6 @@
+pro start aplikace
+npm index.js
+
+pro doinstalovaní modulů:
+npm install express simple-json-db
+npm install bcrypt

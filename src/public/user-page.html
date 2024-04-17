@@ -8,8 +8,69 @@
 <body>
     <h2>Welcome, User</h2>
     <p>This is your user page.</p>
+
+    <!-- Formulář pro vytvoření nové poznámky -->
+    <form id="create-note-form">
+        <input type="text" id="note-text" placeholder="Enter your note">
+        <button type="submit">Add Note</button>
+    </form>
+
+    <!-- Seznam poznámek -->
+    <ul id="note-list">
+        <!-- Dynamicky naplněné poznámky pomocí JavaScriptu -->
+    </ul>
+
+    <!-- Formulář pro odhlášení -->
     <form action="/logout" method="post">
         <button type="submit">Logout</button>
     </form>
+
+    <!-- JavaScript pro odesílání poznámek a zobrazování seznamu -->
+    <script>
+        // Funkce pro odeslání nové poznámky
+        const createNoteForm = document.getElementById('create-note-form');
+        createNoteForm.addEventListener('submit', (event) => {
+            event.preventDefault(); // Zabrání výchozímu chování formuláře
+
+            const noteText = document.getElementById('note-text').value;
+            fetch('/create-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: noteText })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to create note');
+                }
+                return response.json();
+            })
+            .then(() => {
+                // Po úspěšném vytvoření poznámky načti a zobraz seznam poznámek
+                fetchNotes();
+            })
+            .catch(error => console.error('Error creating note:', error));
+        });
+
+        // Funkce pro načtení a zobrazení seznamu poznámek
+        function fetchNotes() {
+            fetch('/notes')
+            .then(response => response.json())
+            .then(notes => {
+                const noteList = document.getElementById('note-list');
+                noteList.innerHTML = '';
+                notes.forEach(note => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = note.text;
+                    noteList.appendChild(listItem);
+                });
+            })
+            .catch(error => console.error('Error fetching notes:', error));
+        }
+
+        // Načti a zobraz seznam poznámek při načtení stránky
+        fetchNotes();
+    </script>
 </body>
 </html>

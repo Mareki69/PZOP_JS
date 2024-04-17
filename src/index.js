@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Simulace databáze uživatelů
 let users = [];
+
+// Simulace databáze poznámek
+let notes = [];
 
 // GET endpoint pro úvodní stránku
 app.get('/', (req, res) => {
@@ -22,7 +26,7 @@ app.get('/register', (req, res) => {
 });
 
 // POST endpoint pro registraci uživatele
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
 
     // Validace vstupních dat
@@ -36,11 +40,19 @@ app.post('/register', (req, res) => {
         return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Přidání nového uživatele do databáze
-    users.push({ username, email, password });
+    try {
+        // Hashování hesla
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Přesměrování na stránku po úspěšné registraci
-    res.redirect('/user-page');
+        // Přidání nového uživatele do databáze
+        users.push({ username, email, password: hashedPassword });
+
+        // Přesměrování na stránku po úspěšné registraci
+        res.redirect('/user-page');
+    } catch (error) {
+        console.error('Error hashing password:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // GET endpoint pro stránku přihlášení
@@ -49,7 +61,7 @@ app.get('/login', (req, res) => {
 });
 
 // POST endpoint pro přihlášení uživatele
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     // Validace vstupních dat
@@ -58,12 +70,43 @@ app.post('/login', (req, res) => {
     }
 
     // Hledání uživatele v databázi
-    const user = users.find(user => user.email === email && user.password === password);
+    const user = users.find(user => user.email === email);
     if (!user) {
         return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Ověření hesla
+    try {
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+    } catch (error) {
+        console.error('Error comparing passwords:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+
     // Přesměrování na stránku po přihlášení
+    res.redirect('/user-page');
+});
+
+// POST endpoint pro vytvoření poznámky
+app.post('/create-note', (req, res) => {
+    const { text } = req.body;
+
+    // Validace vstupních dat
+    if (!text) {
+        return res.status(400).json({ error: 'Please provide note text' });
+    }
+
+    // Generování ID pro novou poznámku
+    const id = notes.length + 1;
+
+    // Vytvoření nové poznámky a uložení do databáze
+    const newNote = { id, text };
+    notes.push(newNote);
+
+    // Přesměrování zpět na uživatelskou stránku s poznámkami
     res.redirect('/user-page');
 });
 
