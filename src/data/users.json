@@ -1,1 +1,13 @@
-[{"username":"test","email":"t@t.cz","password":"test"}]
+[
+  {
+    "username": "test",
+    "email": "t@t.cz",
+    "password": "test"
+  },
+  {
+    "username": "pepik",
+    "email": "x@x.cz",
+    "password": "$2b$10$jpN/1SWkymGm9ws3ZwL0duFPs5Fy/RYcMzEKMQdyCrYwJsxD.ZWZa",
+    "notes": []
+  }
+]

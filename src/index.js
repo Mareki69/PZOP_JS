@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,11 +10,34 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Cesta k souboru s uživateli
+const usersFilePath = path.join(__dirname, 'data', 'users.json');
+
 // Simulace databáze uživatelů
 let users = [];
 
-// Simulace databáze poznámek
-let notes = [];
+// Získání uživatelů ze souboru
+const getUsersFromFile = () => {
+    try {
+        const data = fs.readFileSync(usersFilePath, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('Error reading users file:', error);
+        return [];
+    }
+};
+
+// Zápis uživatelů do souboru
+const saveUsersToFile = () => {
+    try {
+        fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
+    } catch (error) {
+        console.error('Error writing users file:', error);
+    }
+};
+
+// Načtení uživatelů ze souboru
+users = getUsersFromFile();
 
 // GET endpoint pro úvodní stránku
 app.get('/', (req, res) => {
@@ -45,7 +69,11 @@ app.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Přidání nového uživatele do databáze
-        users.push({ username, email, password: hashedPassword });
+        const newUser = { username, email, password: hashedPassword, notes: [] };
+        users.push(newUser);
+
+        // Uložení uživatele do souboru
+        saveUsersToFile();
 
         // Přesměrování na stránku po úspěšné registraci
         res.redirect('/user-page');
@@ -93,18 +121,25 @@ app.post('/login', async (req, res) => {
 // POST endpoint pro vytvoření poznámky
 app.post('/create-note', (req, res) => {
     const { text } = req.body;
+    const email = req.body.email;
 
     // Validace vstupních dat
     if (!text) {
         return res.status(400).json({ error: 'Please provide note text' });
     }
 
+    // Najděte uživatele v seznamu uživatelů
+    const user = users.find(user => user.email === email);
+
     // Generování ID pro novou poznámku
-    const id = notes.length + 1;
+    const id = user.notes.length + 1;
 
     // Vytvoření nové poznámky a uložení do databáze
     const newNote = { id, text };
-    notes.push(newNote);
+    user.notes.push(newNote);
+
+    // Uložení změn do souboru
+    saveUsersToFile();
 
     // Přesměrování zpět na uživatelskou stránku s poznámkami
     res.redirect('/user-page');

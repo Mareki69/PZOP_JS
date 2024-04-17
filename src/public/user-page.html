@@ -33,12 +33,13 @@
             event.preventDefault(); // Zabrání výchozímu chování formuláře
 
             const noteText = document.getElementById('note-text').value;
+            const email = localStorage.getItem('email'); // Získání emailu přihlášeného uživatele
             fetch('/create-note', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ text: noteText })
+                body: JSON.stringify({ text: noteText, email: email })
             })
             .then(response => {
                 if (!response.ok) {
@@ -55,15 +56,18 @@
 
         // Funkce pro načtení a zobrazení seznamu poznámek
         function fetchNotes() {
+            const email = localStorage.getItem('email'); // Získání emailu přihlášeného uživatele
             fetch('/notes')
             .then(response => response.json())
             .then(notes => {
                 const noteList = document.getElementById('note-list');
                 noteList.innerHTML = '';
                 notes.forEach(note => {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = note.text;
-                    noteList.appendChild(listItem);
+                    if (note.user === email) { // Zobrazení pouze poznámek přihlášeného uživatele
+                        const listItem = document.createElement('li');
+                        listItem.textContent = note.text;
+                        noteList.appendChild(listItem);
+                    }
                 });
             })
             .catch(error => console.error('Error fetching notes:', error));
